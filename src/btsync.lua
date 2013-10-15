@@ -1,156 +1,207 @@
 ---
--- lua-btsync
----
+-- lua-btsync - Interface with BitTorrent Sync's webui using Lua
+-- @module btsync
+-- @author Conor Heine
+-- @license MIT
+-- @copyright Conor Heine 2013
+
+local http   = require 'socket.http'
+local ltn12  = require 'ltn12'
+local json   = require 'cjson'
+local mime   = require 'mime'
+local codes  = require 'httpcodes'
+local Btcomm = require 'btcomm'
 
 local btsync = {}
 
-local function request(a, e, d, b)
-	error('Not implemented')
+--- Private functions.
+-- @section Private
+
+--- Strip single-line and multi-line comments from JSON string
+-- (I was unable to find a JSON decoder for Lua that gracefully
+-- ignores single & multi-line comments)
+local function strip_comments(txt)
+  txt = txt:gsub("/%*.-%*/","")
+  txt = txt:gsub("//.-\n","")
+  return txt
 end
 
-local function requestToken(c, b)
-	error('Not implemented')
+--- Load the given JSON-based btsync configuration file, or default
+-- to loading the conf for the current user.
+-- @string conf Path to configuration file
+local function load_btconf(btconf_file)
+  print(btconf_file)
+  local file = assert(io.open(btconf_file, 'r'))
+  local text = file:read('*all')
+  file:close()
+  return json.decode(strip_comments(text))
 end
 
-local function getOsType(b, c)
-	error('Not implemented')
+--- Public (API) functions.
+-- @section Public
+
+--- Factory that creates new btsync interfaces
+-- @string[opt='~/.config/btsync/btsync.conf'] btconf_file Path to btsync.conf
+local function init(btconf_file)
+  local fpath = btconf_file or os.getenv('HOME') .. '/.config/btsync/btsync.conf'
+  print(fpath)
+  local conf  = load_btconf(fpath)
+  local btsync_obj = {
+    config = conf,
+    comm   = Btcomm(conf)
+  }
+  return setmetatable(btsync_obj, { __index = btsync })
 end
 
-local function getVersion(b, c)
-	error('Not implemented')
+--- Get a request token from BTSync webui
+function btsync:request_token()
+  local code, headers, body = self.comm:request({ url = 'token.html' })
+
+  if code ~= 200 then error('HTTP '..code..': '..codes[code]) end
+
+  return body:match('>([^<]+)<')
 end
 
-local function addSyncFolder(b, c)
-	error('Not implemented')
+local function get_os_type(b, c)
+  error('not implemented')
 end
 
-local function addForceSyncFolder(b, c)
-	error('Not implemented')
+local function get_version(b, c)
+  error('not implemented')
 end
 
-local function removeSyncFolder(b, c)
-	error('Not implemented')
+local function add_sync_folder(b, c)
+  error('not implemented')
 end
 
-local function generateSecret(b, c)
-	error('Not implemented')
+local function add_force_sync_folder(b, c)
+  error('not implemented')
 end
 
-local function getSettings(b, c)
-	error('Not implemented')
+local function remove_sync_folder(b, c)
+  error('not implemented')
 end
 
-local function setSettings(b, c)
-	error('Not implemented')
+local function generate_secret(b, c)
+  error('not implemented')
 end
 
-local function getSyncFolders(b, c)
-	error('Not implemented')
+local function get_settings(b, c)
+  error('not implemented')
 end
 
-local function checkNewVersion(b, c)
-	error('Not implemented')
+local function set_settings(b, c)
+  error('not implemented')
 end
 
-local function getFolderPreferences(b, c)
-	error('Not implemented')
+local function get_sync_folders(b, c)
+  error('not implemented')
 end
 
-local function setFolderPreferences(b, c)
-	error('Not implemented')
+local function check_new_version(b, c)
+  error('not implemented')
 end
 
-local function getHosts(b, c)
-	error('Not implemented')
+local function get_folder_preferences(b, c)
+  error('not implemented')
 end
 
-local function addHost(b, c)
-	error('Not implemented')
+local function set_folder_preferences(b, c)
+  error('not implemented')
 end
 
-local function removeHost(b, c)
-	error('Not implemented')
+local function get_hosts(b, c)
+  error('not implemented')
 end
 
-local function getLang(b, c)
-	error('Not implemented')
+local function add_host(b, c)
+  error('not implemented')
 end
 
-local function setLang(b, c)
-	error('Not implemented')
+local function remove_host(b, c)
+  error('not implemented')
 end
 
-local function updateSecret(b, c)
-	error('Not implemented')
+local function get_lang(b, c)
+  error('not implemented')
 end
 
-local function generateInvite(b, c)
-	error('Not implemented')
+local function set_lang(b, c)
+  error('not implemented')
 end
 
-local function generateROInvite(b, c)
-	error('Not implemented')
+local function update_secret(b, c)
+  error('not implemented')
 end
 
-local function licenseAccept(b, c)
-	error('Not implemented')
+local function generate_invite(b, c)
+  error('not implemented')
 end
 
-local function licenseCancel(b, c)
-	error('Not implemented')
+local function generate_ro_invite(b, c)
+  error('not implemented')
 end
 
-local function needLicense(b, c)
-	error('Not implemented')
+local function license_accept(b, c)
+  error('not implemented')
 end
 
-local function iswebuiLanguageSet(b, c)
-	error('Not implemented')
+local function license_cancel(b, c)
+  error('not implemented')
 end
 
-local function setwebuiLanguage(b, c)
-	error('Not implemented')
+local function need_license(b, c)
+  error('not implemented')
 end
 
-local function getUserName(b, c)
-	error('Not implemented')
+local function is_webui_language_set(b, c)
+  error('not implemented')
 end
 
-local function setCredentials(b, c)
-	error('Not implemented')
+local function set_webui_language(b, c)
+  error('not implemented')
+end
+
+local function get_username(b, c)
+  error('not implemented')
+end
+
+local function set_credentials(b, c)
+  error('not implemented')
 end
 
 if _TEST then
   -- Expose private functions for busted unit testing
-  btsync.request              = request
-  btsync.requestToken         = requestToken
-  btsync.getOsType            = getOsType
-  btsync.getVersion           = getVersion
-  btsync.addSyncFolder        = addSyncFolder
-  btsync.addForceSyncFolder   = addForceSyncFolder
-  btsync.removeSyncFolder     = removeSyncFolder
-  btsync.generateSecret       = generateSecret
-  btsync.getSettings          = getSettings
-  btsync.setSettings          = setSettings
-  btsync.getSyncFolders       = getSyncFolders
-  btsync.checkNewVersion      = checkNewVersion
-  btsync.getFolderPreferences = getFolderPreferences
-  btsync.setFolderPreferences = setFolderPreferences
-  btsync.getHosts             = getHosts
-  btsync.addHost              = addHost
-  btsync.removeHost           = removeHost
-  btsync.getLang              = getLang
-  btsync.setLang              = setLang
-  btsync.updateSecret         = updateSecret
-  btsync.generateInvite       = generateInvite
-  btsync.generateROInvite     = generateROInvite
-  btsync.licenseAccept        = licenseAccept
-  btsync.licenseCancel        = licenseCancel
-  btsync.needLicense          = needLicense
-  btsync.iswebuiLanguageSet   = iswebuiLanguageSet
-  btsync.setwebuiLanguage     = setwebuiLanguage
-  btsync.getUserName          = getUserName
-  btsync.setCredentials       = setCredentials
+  btsync.strip_comments = strip_comments
+  btsync.load_btconf = load_btconf
+  btsync.init = init
+  btsync.get_os_type = get_os_type
+  btsync.get_version = get_version
+  btsync.add_sync_folder = add_sync_folder
+  btsync.add_force_sync_folder = add_force_sync_folder
+  btsync.remove_sync_folder = remove_sync_folder
+  btsync.generate_secret = generate_secret
+  btsync.get_settings = get_settings
+  btsync.set_settings = set_settings
+  btsync.get_sync_folders = get_sync_folders
+  btsync.check_new_version = check_new_version
+  btsync.get_folder_preferences = get_folder_preferences
+  btsync.set_folder_preferences = set_folder_preferences
+  btsync.get_hosts = get_hosts
+  btsync.add_host = add_host
+  btsync.remove_host = remove_host
+  btsync.get_lang = get_lang
+  btsync.set_lang = set_lang
+  btsync.update_secret = update_secret
+  btsync.generate_invite = generate_invite
+  btsync.generate_ro_invite = generate_ro_invite
+  btsync.license_accept = license_accept
+  btsync.license_cancel = license_cancel
+  btsync.need_license = need_license
+  btsync.is_webui_language_set = is_webui_language_set
+  btsync.set_webui_language = set_webui_language
+  btsync.get_username = get_username
+  btsync.set_credentials = set_credentials
 end
 
-return setmetatable(btsync, {})
+return init
