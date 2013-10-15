@@ -1,5 +1,4 @@
----
--- lua-btsync - Interface with BitTorrent Sync's webui using Lua
+--- lua-btsync - Interface with BitTorrent Sync's webui using Lua
 -- @module btsync
 -- @author Conor Heine
 -- @license MIT
@@ -11,6 +10,7 @@ local json   = require 'cjson'
 local mime   = require 'mime'
 local codes  = require 'httpcodes'
 local Btcomm = require 'btcomm'
+local d      = require 'pl.pretty'.dump
 
 local btsync = {}
 
@@ -48,7 +48,8 @@ local function init(btconf_file)
   local conf  = load_btconf(fpath)
   local btsync_obj = {
     config = conf,
-    comm   = Btcomm(conf)
+    comm   = Btcomm(conf),
+    cache  = {}
   }
   return setmetatable(btsync_obj, { __index = btsync })
 end
@@ -59,7 +60,8 @@ function btsync:request_token()
 
   if code ~= 200 then error('HTTP '..code..': '..codes[code]) end
 
-  return body:match('>([^<]+)<')
+  self.cache.token = body:match('>([^<]+)<')
+  return self.cache.token
 end
 
 local function get_os_type(b, c)
@@ -94,8 +96,28 @@ local function set_settings(b, c)
   error('not implemented')
 end
 
-local function get_sync_folders(b, c)
-  error('not implemented')
+--- Gets a descriptive list of active sync folders
+-- Example request: /?token=ABC123=getsyncfolders&t=1381813520570
+function btsync:get_sync_folders()
+  local getp = {
+    token  = self.cache.token,
+    action = 'getsyncfolders',
+    t      = os.time()
+  }
+  local h = {
+    Referer = 'http://0.0.0.0:8888/gui/en/index.html'
+  }
+  local code, headers, body = self.comm:request({ headers = h, params = getp })
+  
+  print(code)
+  d(headers)
+
+  if code ~= 200 then error('HTTP '..code..': '..codes[code]) end
+
+  d(body)
+  local fdata = json.decode(body)
+  d(fdata)
+  return fdata
 end
 
 local function check_new_version(b, c)
@@ -183,7 +205,6 @@ if _TEST then
   btsync.generate_secret = generate_secret
   btsync.get_settings = get_settings
   btsync.set_settings = set_settings
-  btsync.get_sync_folders = get_sync_folders
   btsync.check_new_version = check_new_version
   btsync.get_folder_preferences = get_folder_preferences
   btsync.set_folder_preferences = set_folder_preferences
