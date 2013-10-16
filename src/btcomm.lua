@@ -30,7 +30,7 @@ local btcomm = {}
 -- @section Private
 
 --- Takes a table of key-value pairs and formats it to GET request param string
--- @tparam table p key-value pairs describing GET params as: param = value 
+-- @tparam table p key-value pairs describing GET params as: `param = value` 
 -- @return 
 local function build_query(p)
   if p == nil then return '' end
@@ -57,9 +57,9 @@ local function explode_cookie(set_cookie)
   return c
 end
 
---- Format table of cookie = value key-value-pairs and formats them
+--- Format table of `cookie = value` key-value pairs and formats them
 -- into a cookie string for a request header
--- @tparam table cookies Table of cookies with pairs in the form cookie_name = value
+-- @tparam table string Header string in the form `cookie_name = value`
 local function implode_cookie(cookies)
   local c = ''
   
@@ -158,7 +158,8 @@ function btcomm:request_token()
 end
 
 --- Performs http request and return sane response data
--- @tparam table query_tab GET request query variables. { key = val } => '?key=val'. { key = true } => ?key.
+-- @tparam table query_tab GET request query variables. 
+-- `{ key = val }` => `'?key=val'`. `{ key = true }` => `'?key'`.
 -- @tparam[opt] string method Override request method, default 'GET'
 -- @tparam[opt] string path Optional relative path
 -- @treturn string Response Body
@@ -216,7 +217,7 @@ end
 --     password = 'Password'  -- Optional
 --   }
 -- }
--- local my_btcomm_obj = Btcomm()
+-- local my_btcomm_obj = Btcomm(config)
 -- @name btcomm
 -- @tparam table conf Values from btsync.conf (uses localhost:8888 without auth if omitted)
 -- @return table New @{btcomm} object
@@ -250,9 +251,11 @@ local function init(btconf)
   return setmetatable(instance, {  __index = btcomm })
 end
 
+-- Expose private functions for busted unit testing
 if _TEST then
-  -- Expose private functions for busted unit testing
-  btcomm.param_string = param_string
+  btcomm.implode_cookie = implode_cookie
+  btcomm.explode_cookie = explode_cookie
+  btcomm.do_request     = do_request
 end
 
 return init

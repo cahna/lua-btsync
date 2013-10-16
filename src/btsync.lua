@@ -13,6 +13,7 @@ local Btcomm = require 'btcomm'
 --- @todo Remove step-through verbose debugger functions
 local dump = require 'pl.pretty'.dump
 local debug_enabled = false
+
 local function d(data, header)
   if not debug_enabled then return end
   if header then print('--- ' .. header .. ' ---') end
@@ -49,7 +50,10 @@ end
 -- @section API
 
 --- Construct new btsync object
--- @tparam string btconf_file Path to btsync.conf, default ~/.config/btsync/btsync.conf
+-- @usage 
+-- local Btsync = require 'btsync'
+-- local btsync_obj = Btsync('~/.config/btsync/btsync.conf')
+-- @tparam string btconf_file Path to btsync.conf, default `~/.config/btsync/btsync.conf`
 -- @treturn table New @{btsync} object
 local function init(btconf_file)
   local fpath = btconf_file or os.getenv('HOME') .. '/.config/btsync/btsync.conf'
@@ -149,7 +153,7 @@ end
 
 --- Get the current user language
 -- @treturn string Language code
-function btsync:get_lang(b, c)
+function btsync:get_lang()
   local body = json.decode(self.comm:request({ action = 'getuserlang' }))
   return body.lang
 end
