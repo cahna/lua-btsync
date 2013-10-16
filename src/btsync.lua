@@ -55,7 +55,7 @@ end
 -- local btsync_obj = Btsync('~/.config/btsync/btsync.conf')
 -- @tparam string btconf_file Path to btsync.conf, default `~/.config/btsync/btsync.conf`
 -- @treturn table New @{btsync} object
-local function init(btconf_file)
+local function init(self, btconf_file)
   local fpath = btconf_file or os.getenv('HOME') .. '/.config/btsync/btsync.conf'
   local conf  = load_btconf(fpath)
   local btsync_obj = {
@@ -236,4 +236,4 @@ if _TEST then
   btsync.set_credentials = set_credentials
 end
 
-return init
+return setmetatable(btsync, { __call = init })

@@ -1,133 +1,103 @@
 ---
 -- lua-btsync tests
 ---
+local Btsync = require 'btsync'
 
-describe('lua-btsync api', function()
-  local btsync
+describe('lua-btsync api tests for a running Sync instance', function()
+  local btsync, snapshot
 
   setup(function()
-    btsync = require 'btsync'
+    btsync = Btsync()
+  end)
+
+  before_each(function()
+    snapshot = assert:snapshot()
+  end)
+
+  after_each(function()
+    snapshot:revert()
   end)
 
   teardown(function()
     btsync = nil
   end)
 
-  it('load_btconf', function() 
-    pending('To be implemented...')
-  end)
+  pending('load_btconf')
 
-  it('init', function() 
-    pending('To be implemented...')
-  end)
+  pending('init')
 
-  it('get_os_type', function() 
-    pending('To be implemented...')
-  end)
+  pending('get_os_type')
 
-  it('get_version', function() 
-    pending('To be implemented...')
-  end)
+  pending('get_version')
 
-  it('add_sync_folder', function() 
-    pending('To be implemented...')
-  end)
+  pending('add_sync_folder')
 
-  it('add_force_sync_folder', function() 
-    pending('To be implemented...')
-  end)
+  pending('add_force_sync_folder')
 
-  it('remove_sync_folder', function() 
-    pending('To be implemented...')
-  end)
+  pending('remove_sync_folder')
 
-  it('generate_secret', function() 
-    pending('To be implemented...')
-  end)
+  pending('generate_secret')
 
-  it('get_settings', function() 
-    pending('To be implemented...')
-  end)
+  pending('get_settings')
 
-  it('set_settings', function() 
-    pending('To be implemented...')
-  end)
+  pending('set_settings')
 
   it('get_sync_folders', function() 
-    pending('To be implemented...')
+    local folder_data  = btsync:get_sync_folders()
+
+    assert.is_table(folder_data)
+    assert.is_string(folder_data.speed)
+    assert.is_table(folder_data.folders)
+
+    for _,folder in ipairs(folder_data.folders) do
+      assert.is_string(folder.secret)
+      assert.is_string(folder.size)
+      assert.is_table(folder.peers)
+      assert.is_number(folder.iswritable)
+      assert.is_string(folder.name)
+      assert.is_string(folder.readonlysecret)
+    end
   end)
 
-  it('check_new_version', function() 
-    pending('To be implemented...')
-  end)
+  pending('check_new_version')
 
-  it('get_folder_preferences', function() 
-    pending('To be implemented...')
-  end)
+  pending('get_folder_preferences')
 
-  it('set_folder_preferences', function() 
-    pending('To be implemented...')
-  end)
+  pending('set_folder_preferences')
 
-  it('get_hosts', function() 
-    pending('To be implemented...')
-  end)
+  pending('get_hosts')
 
-  it('add_host', function() 
-    pending('To be implemented...')
-  end)
+  pending('add_host')
 
-  it('remove_host', function() 
-    pending('To be implemented...')
-  end)
+  pending('remove_host')
 
   it('get_lang', function() 
-    pending('To be implemented...')
+    assert.are_equal(btsync:get_lang(), 'en')
   end)
 
-  it('set_lang', function() 
-    pending('To be implemented...')
-  end)
+  pending('set_lang')
 
-  it('update_secret', function() 
-    pending('To be implemented...')
-  end)
+  pending('update_secret')
 
-  it('generate_invite', function() 
-    pending('To be implemented...')
-  end)
+  pending('generate_invite')
 
-  it('generate_ro_invite', function() 
-    pending('To be implemented...')
-  end)
+  pending('generate_ro_invite')
 
-  it('license_accept', function() 
-    pending('To be implemented...')
-  end)
+  pending('license_accept')
 
-  it('license_cancel', function() 
-    pending('To be implemented...')
-  end)
+  pending('license_cancel')
 
-  it('need_license', function() 
-    pending('To be implemented...')
-  end)
+  pending('need_license')
 
   it('is_webui_language_set', function() 
-    pending('To be implemented...')
+    assert.is_true(btsync:is_webui_language_set())
   end)
 
-  it('set_webui_language', function() 
-    pending('To be implemented...')
-  end)
+  pending('set_webui_language')
 
-  it('get_username', function() 
-    pending('To be implemented...')
-  end)
+  pending('get_username')
 
-  it('set_credentials', function() 
-    pending('To be implemented...')
-  end)
+  pending('set_credentials')
 
 
 end)

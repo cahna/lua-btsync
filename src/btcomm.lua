@@ -221,7 +221,7 @@ end
 -- @name btcomm
 -- @tparam table conf Values from btsync.conf (uses localhost:8888 without auth if omitted)
 -- @return table New @{btcomm} object
-local function init(btconf)
+local function init(self, btconf)
   if not btconf.webui then error('missing webui configuration') end
   if btconf.shared_folders then error('webui disabled') end
 
@@ -233,8 +233,6 @@ local function init(btconf)
     host     = 'localhost',     -- string: Sync webui host, default 'localhost'
     port     = 8888,            -- int: Sync webui port, default 8888
     use_auth = false,           -- bool: Use authentication? default, false
-    user     = 'User',          -- string: Username for authentication
-    pass     = 'Password',      -- string: Password for authentication
     session  = {                -- table: Holds session/cache data
       headers = {}              -- table: Used to persist headers across requests
     }
@@ -258,4 +256,4 @@ if _TEST then
   btcomm.do_request     = do_request
 end
 
-return init
+return setmetatable(btcomm, { __call = init })
