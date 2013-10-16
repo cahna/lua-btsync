@@ -8,6 +8,8 @@ local http   = require 'socket.http'
 local ltn12  = require 'ltn12'
 local json   = require 'cjson'
 local mime   = require 'mime'
+local band   = require 'bit'.band
+local rshift = require 'bit'.rshift
 local Btcomm = require 'btcomm'
 
 --- @todo Remove step-through verbose debugger functions
@@ -71,9 +73,21 @@ function btsync:get_os_type()
 end
 
 --- Get the version number for the Sync instance
--- @treturn number Sync version
-function btsync:get_version(b, c)
+-- @tparam[opt] boolean as_string If true, will return human-readable version number
+-- @treturn[1] number Sync version
+-- @treturn[2] string Human-readable version number
+function btsync:get_version(as_string)
   local body = json.decode(self.comm:request({ action = 'getversion' }))
+
+  if as_string then
+    local ver = body.version
+    local major = rshift(band(ver, '0xFF000000'), 24)
+    local minor = rshift(band(ver, '0x00FF0000'), 16)
+    local tiny  = band(ver, '0x0000FFFF')
+
+    return major .. '.' .. minor .. '.' .. tiny
+  end
+
   return body.version
 end
 
@@ -157,15 +171,31 @@ function btsync:check_new_version()
 end
 
 function btsync:get_folder_preferences(folder, secret)
-  error('not implemented')
+  local body = self.comm:request({ 
+    action = 'getfolderpref',
+    name   = folder,
+    secret = secret
+  })
+  local data = json.decode(body)
+  return data.folderpref
 end
 
 function btsync:set_folder_preferences(folder, secret)
   error('not implemented')
 end
 
+--- Get connected hosts for a folder
+-- @tparam string folder Sync folder path
+-- @tparam string secret Sync folder secret
+-- @treturn table List of hosts
 function btsync:get_hosts(folder, secret)
-  error('not implemented')
+  local body = self.comm:request({ 
+    action = 'getknownhosts',
+    name   = folder,
+    secret = secret
+  })
+  local data = json.decode(body)
+  return data.hosts
 end
 
 function btsync:add_host(folder, secret, address, port)
@@ -183,20 +213,51 @@ function btsync:get_lang()
   return body.lang
 end
 
+--- Set the webui language
+-- @tparam string language Language code for webui language (example: 'en' for english)
+-- @treturn boolean status True if successful, false otherwise
 function btsync:set_lang(language)
-  error('not implemented')
+  local r = json.decode(self.comm:request({ 
+    action = 'setuserlang',
+    lang   = language
+  }))
+  return type(r) == 'table'
 end
 
 function btsync:update_secret(folder, secret, newsecret)
-  error('not implemented')
+  local r = json.decode(self.comm:request({ 
+    action    = 'updatesecret',
+    name      = folder,
+    secret    = secret,
+    newsecret = newsecret
+  }))
+  return type(r) == 'table'
 end
 
+--- Generate a full-access invite for a sync folder
+-- @tparam string folder Sync folder full path
+-- @tparam string secret Sync folder secret
+-- @treturn string Invite code
 function btsync:generate_invite(folder, secret)
-  error('not implemented')
+  local r = json.decode(self.comm:request({ 
+    action    = 'generateinvite',
+    name      = folder,
+    secret    = secret
+  }))
+  return r.invite
 end
 
+--- Generate a readonly-access invite for a sync folder
+-- @tparam string folder Sync folder full path
+-- @tparam string secret Sync folder secret
+-- @treturn string Readonly invite code
 function btsync:generate_ro_invite(folder, secret)
-  error('not implemented')
+  local r = json.decode(self.comm:request({ 
+    action    = 'generateroinvite',
+    name      = folder,
+    secret    = secret
+  }))
+  return r.invite
 end
 
 --- Accept the BT Sync software terms

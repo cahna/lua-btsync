@@ -38,6 +38,10 @@ describe('lua-btsync api tests for a running Sync instance', function()
 
   it('get_version', function()
     assert.is_number(btsync:get_version())
+
+    local str_version = btsync:get_version(true)
+    assert.is_string(str_version)
+    assert.is_string(str_version:match('(%d+.%d+.%d+)'))
   end)
 
   pending('add_sync_folder')
@@ -84,11 +88,32 @@ describe('lua-btsync api tests for a running Sync instance', function()
 
   pending('check_new_version')
 
-  pending('get_folder_preferences')
+  it('get_folder_preferences', function()
+    local folder_data = btsync:get_sync_folders()
+
+    for _,folder in ipairs(folder_data.folders) do
+      local prefs = btsync:get_folder_preferences(folder.name, folder.secret)
+      assert.is_table(prefs)
+      assert.is_number(prefs.deletetotrash)
+      assert.is_number(prefs.iswritable)
+      assert.is_string(prefs.readonlysecret)
+      assert.is_number(prefs.searchdht)
+      assert.is_number(prefs.searchlan)
+      assert.is_number(prefs.usehosts)
+      assert.is_number(prefs.usetracker)
+    end
+  end)
 
   pending('set_folder_preferences')
 
-  pending('get_hosts')
+  it('get_hosts', function()
+    local folder_data = btsync:get_sync_folders()
+
+    for _,folder in ipairs(folder_data.folders) do
+      local prefs = btsync:get_hosts(folder.name, folder.secret)
+      assert.is_table(prefs)
+    end
+  end)
 
   pending('add_host')
 
@@ -98,19 +123,41 @@ describe('lua-btsync api tests for a running Sync instance', function()
     assert.are_equal(btsync:get_lang(), 'en')
   end)
 
-  pending('set_lang')
+  it('set_lang', function()
+    assert.is_true(btsync:set_lang('en'))
+  end)
 
   pending('update_secret')
 
-  pending('generate_invite')
+  it('generate_invite', function()
+    local folder_data = btsync:get_sync_folders()
 
-  pending('generate_ro_invite')
+    for _,folder in ipairs(folder_data.folders) do
+      local invite = btsync:generate_invite(folder.name, folder.secret)
+      assert.is_string(invite)
+    end
+  end)
 
-  pending('license_accept')
+  it('generate_ro_invite', function()
+    local folder_data = btsync:get_sync_folders()
 
-  pending('license_cancel')
+    for _,folder in ipairs(folder_data.folders) do
+      local invite = btsync:generate_ro_invite(folder.name, folder.secret)
+      assert.is_string(invite)
+    end
+  end)
 
-  pending('need_license')
+  it('license_accept', function()
+    assert.is_true(btsync:license_accept())
+  end)
+
+  it('license_cancel', function()
+    assert.is_true(btsync:license_cancel())
+  end)
+
+  it('need_license', function()
+    assert.is_boolean(btsync:need_license())
+  end)
 
   it('is_webui_language_set', function() 
     assert.is_true(btsync:is_webui_language_set())
