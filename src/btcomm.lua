@@ -114,6 +114,45 @@ end
 --- Public functions 
 -- @section API
 
+--- Construct new btcomm object
+-- @usage 
+-- local Btcomm = require 'btcomm'
+-- local config = {
+--   webui = {
+--     listen   = '0.0.0.0:8888',
+--     login    = 'Username', -- Optional
+--     password = 'Password'  -- Optional
+--   }
+-- }
+-- local my_btcomm_obj = Btcomm(config)
+-- @tparam table conf Values from btsync.conf (uses localhost:8888 without auth if omitted)
+-- @return table New @{btcomm} object
+local function init(self, btconf)
+  if not btconf.webui then error('missing webui configuration') end
+  if btconf.shared_folders then error('webui disabled') end
+
+  local ui       = btconf.webui
+  local instance = {
+    scheme   = 'http',
+    host     = 'localhost',
+    port     = 8888,
+    use_auth = false,
+    session  = {
+      headers = {}
+    }
+  }
+
+  instance.host = ui.listen:match('^(%d+%.%d+%.%d+%.%d+):%d+')
+  instance.port = tonumber(ui.listen:match('%d+%.%d+%.%d+%.%d+:(%d+)$'))
+
+  if ui.login then
+    instance.use_auth = true
+    instance.session.headers.Authorization = 'Basic ' .. (mime.b64(ui.login .. ":" .. ui.password))
+  end
+
+  return setmetatable(instance, {  __index = btcomm })
+end
+
 --- Update client session cookie with response header's 'set-cookie' values
 -- @tparam string set_cookie 'set-cookie' value from server response header
 function btcomm:update_session_cookie(set_cookie)
@@ -207,47 +246,16 @@ function btcomm:request(query_tab, method, path)
   return body
 end
 
---- Construct new btcomm object
--- @usage 
--- local Btcomm = require 'btcomm'
--- local config = {
---   webui = {
---     listen   = '0.0.0.0:8888',
---     login    = 'Username', -- Optional
---     password = 'Password'  -- Optional
---   }
--- }
--- local my_btcomm_obj = Btcomm(config)
--- @name btcomm
--- @tparam table conf Values from btsync.conf (uses localhost:8888 without auth if omitted)
--- @return table New @{btcomm} object
-local function init(self, btconf)
-  if not btconf.webui then error('missing webui configuration') end
-  if btconf.shared_folders then error('webui disabled') end
+--- Detailed return values
+-- @section returns
 
-  local ui   = btconf.webui
-
-  --- Instance variables in new @{btcomm} object
-  local instance = {
-    scheme   = 'http',          -- string: Request scheme, default 'http'
-    host     = 'localhost',     -- string: Sync webui host, default 'localhost'
-    port     = 8888,            -- int: Sync webui port, default 8888
-    use_auth = false,           -- bool: Use authentication? default, false
-    session  = {                -- table: Holds session/cache data
-      headers = {}              -- table: Used to persist headers across requests
-    }
-  }
-
-  instance.host = ui.listen:match('^(%d+%.%d+%.%d+%.%d+):%d+')
-  instance.port = tonumber(ui.listen:match('%d+%.%d+%.%d+%.%d+:(%d+)$'))
-
-  if ui.login then
-    instance.use_auth = true
-    instance.session.headers.Authorization = 'Basic ' .. (mime.b64(ui.login .. ":" .. ui.password))
-  end
-
-  return setmetatable(instance, {  __index = btcomm })
-end
+--- Instance variables belonging to a new btcomm object returned by @{init}
+-- @tfield string scheme
+-- @tfield string host
+-- @tfield number port
+-- @tfield boolean use_auth
+-- @tfield table session
+-- @table instance
 
 -- Expose private functions for busted unit testing
 if _TEST then

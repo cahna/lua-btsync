@@ -22,13 +22,23 @@ describe('lua-btsync api tests for a running Sync instance', function()
     btsync = nil
   end)
 
+  it('creates new btsync objects properly', function() 
+    assert.is_table(btsync)
+    assert.is_table(btsync.config)
+    assert.is_table(btsync.comm)
+  end)
+
   pending('load_btconf')
 
   pending('init')
 
-  pending('get_os_type')
+  it('get_os_type', function()
+    assert.are_equal(btsync:get_os_type(), 'linux')
+  end)
 
-  pending('get_version')
+  it('get_version', function()
+    assert.is_number(btsync:get_version())
+  end)
 
   pending('add_sync_folder')
 
@@ -36,9 +46,22 @@ describe('lua-btsync api tests for a running Sync instance', function()
 
   pending('remove_sync_folder')
 
-  pending('generate_secret')
+  it('generate_secret', function()
+    local s = btsync:generate_secret()
+    assert.is_table(s)
+    assert.is_string(s.secret)
+    assert.is_string(s.rosecret)
+  end)
 
-  pending('get_settings')
+  it('get_settings', function()
+    local settings = btsync:get_settings()
+    assert.is_table(settings)
+    assert.is_string(settings.devicename)
+    assert.is_number(settings.listeningport)
+    assert.is_number(settings.dlrate)
+    assert.is_number(settings.ulrate)
+    assert.is_number(settings.portmapping)
+  end)
 
   pending('set_settings')
 

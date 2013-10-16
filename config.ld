@@ -4,3 +4,4 @@ no_summary = true
 verbose = true
 no_return_or_parms = true
 format = 'discount'
+simple = true
