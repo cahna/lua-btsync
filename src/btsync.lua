@@ -1,20 +1,29 @@
 --- lua-btsync - Interface with BitTorrent Sync's webui using Lua
--- @module btsync
 -- @author Conor Heine
 -- @license MIT
 -- @copyright Conor Heine 2013
+-- @module btsync
 
 local http   = require 'socket.http'
 local ltn12  = require 'ltn12'
 local json   = require 'cjson'
 local mime   = require 'mime'
-local codes  = require 'httpcodes'
 local Btcomm = require 'btcomm'
-local d      = require 'pl.pretty'.dump
+
+--- @todo Remove step-through verbose debugger functions
+local dump = require 'pl.pretty'.dump
+local debug_enabled = false
+local function d(data, header)
+  if not debug_enabled then return end
+  if header then print('--- ' .. header .. ' ---') end
+  dump(data)
+  if header then print('--- END ' .. header .. ' ---') end
+  io.read('*l')
+end
 
 local btsync = {}
 
---- Private functions.
+--- Private functions 
 -- @section Private
 
 --- Strip single-line and multi-line comments from JSON string
@@ -28,23 +37,22 @@ end
 
 --- Load the given JSON-based btsync configuration file, or default
 -- to loading the conf for the current user.
--- @string conf Path to configuration file
+-- @string btconf_file Path to configuration file
 local function load_btconf(btconf_file)
-  print(btconf_file)
   local file = assert(io.open(btconf_file, 'r'))
   local text = file:read('*all')
   file:close()
   return json.decode(strip_comments(text))
 end
 
---- Public (API) functions.
--- @section Public
+--- Public functions
+-- @section API
 
---- Factory that creates new btsync interfaces
--- @string[opt='~/.config/btsync/btsync.conf'] btconf_file Path to btsync.conf
+--- Construct new btsync object
+-- @tparam string btconf_file Path to btsync.conf, default ~/.config/btsync/btsync.conf
+-- @treturn table New @{btsync} object
 local function init(btconf_file)
   local fpath = btconf_file or os.getenv('HOME') .. '/.config/btsync/btsync.conf'
-  print(fpath)
   local conf  = load_btconf(fpath)
   local btsync_obj = {
     config = conf,
@@ -52,16 +60,6 @@ local function init(btconf_file)
     cache  = {}
   }
   return setmetatable(btsync_obj, { __index = btsync })
-end
-
---- Get a request token from BTSync webui
-function btsync:request_token()
-  local code, headers, body = self.comm:request({ url = 'token.html' })
-
-  if code ~= 200 then error('HTTP '..code..': '..codes[code]) end
-
-  self.cache.token = body:match('>([^<]+)<')
-  return self.cache.token
 end
 
 local function get_os_type(b, c)
@@ -96,28 +94,33 @@ local function set_settings(b, c)
   error('not implemented')
 end
 
---- Gets a descriptive list of active sync folders
--- Example request: /?token=ABC123=getsyncfolders&t=1381813520570
+--- Get a descriptive list of active sync folders
+-- @usage
+-- Example response:
+-- {
+--   speed = "0.0 kB/s up, 0.0 kB/s down",
+--   folders = {
+--     {
+--       secret = "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+--       size = "584.7 MB in 5613 files",
+--       peers = {},
+--       iswritable = 1,
+--       name = "/path/to/folder1",
+--       readonlysecret = "ABC123ABC123ABC123ABC123"
+--     },
+--     {
+--       secret = "ZYXWVUTSRQPONMLKJIHGFEDCBA",
+--       size = "602.7 MB in 8079 files",
+--       peers = {},
+--       iswritable = 1,
+--       name = "/path/to/folder2",
+--       readonlysecret = "321CBA321CBA321CBA321CBA"
+--     }
+--   }
+-- }
+-- @treturn table Metadata for all active sync folders
 function btsync:get_sync_folders()
-  local getp = {
-    token  = self.cache.token,
-    action = 'getsyncfolders',
-    t      = os.time()
-  }
-  local h = {
-    Referer = 'http://0.0.0.0:8888/gui/en/index.html'
-  }
-  local code, headers, body = self.comm:request({ headers = h, params = getp })
-  
-  print(code)
-  d(headers)
-
-  if code ~= 200 then error('HTTP '..code..': '..codes[code]) end
-
-  d(body)
-  local fdata = json.decode(body)
-  d(fdata)
-  return fdata
+  return json.decode(self.comm:request({ action = 'getsyncfolders' }))
 end
 
 local function check_new_version(b, c)
@@ -144,8 +147,11 @@ local function remove_host(b, c)
   error('not implemented')
 end
 
-local function get_lang(b, c)
-  error('not implemented')
+--- Get the current user language
+-- @treturn string Language code
+function btsync:get_lang(b, c)
+  local body = json.decode(self.comm:request({ action = 'getuserlang' }))
+  return body.lang
 end
 
 local function set_lang(b, c)
@@ -176,8 +182,11 @@ local function need_license(b, c)
   error('not implemented')
 end
 
-local function is_webui_language_set(b, c)
-  error('not implemented')
+--- Is the webui's language set?
+-- @treturn bool true if langauge is set, false otherwise
+function btsync:is_webui_language_set()
+  local body = json.decode(self.comm:request({ action = 'iswebuilanguageset' }))
+  return body.iswebuilanguageset == 1
 end
 
 local function set_webui_language(b, c)
@@ -211,7 +220,6 @@ if _TEST then
   btsync.get_hosts = get_hosts
   btsync.add_host = add_host
   btsync.remove_host = remove_host
-  btsync.get_lang = get_lang
   btsync.set_lang = set_lang
   btsync.update_secret = update_secret
   btsync.generate_invite = generate_invite
@@ -219,7 +227,6 @@ if _TEST then
   btsync.license_accept = license_accept
   btsync.license_cancel = license_cancel
   btsync.need_license = need_license
-  btsync.is_webui_language_set = is_webui_language_set
   btsync.set_webui_language = set_webui_language
   btsync.get_username = get_username
   btsync.set_credentials = set_credentials

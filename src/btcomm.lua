@@ -1,44 +1,50 @@
---- Communications library for interfacing with BTSync
--- @module btcomm
+--- Communications library for interfacing with BTSync webui and persisting
+-- session state/data.
 -- @author Conor Heine
 -- @license MIT
 -- @copyright Conor Heine 2013
+-- @module btcomm
 
 local http  = require 'socket.http'
+local url   = require 'socket.url'
 local ltn12 = require 'ltn12'
 local json  = require 'cjson'
 local mime  = require 'mime'
-local d     = require 'pl.pretty'.dump
+local codes = require 'httpcodes'
+
+--- @todo Remove step-through verbose debugger functions
+local dump  = require 'pl.pretty'.dump
+local debug_enabled = false
+
+local function d(data, header)
+  if not debug_enabled then return end
+  if header then print('--- ' .. header .. ' ---') end
+  dump(data)
+  if header then print('--- END ' .. header .. ' ---') end
+  io.read('*l')
+end
 
 local btcomm = {}
 
---- Private functions.
+--- Private functions
 -- @section Private
 
 --- Takes a table of key-value pairs and formats it to GET request param string
--- @table[opt] p Table of key-value pairs describing GET params as: param = value 
-local function param_string(p)
-  if p == nil or #p < 1 then 
-    print('EMPTY PARAMS')
-    return '' 
-  end
+-- @tparam table p key-value pairs describing GET params as: param = value 
+-- @return 
+local function build_query(p)
+  if p == nil then return '' end
 
-  local pstr = '?'
-  local i = 0
-
+  local pstr = ''
   for param, val in pairs(p) do
-    pstr = pstr .. param .. '=' .. val
-    if i < #p - 1 then
-      pstr = pstr .. '&'
-    end
-    i = i + 1
+    pstr = pstr .. url.escape(param) .. '=' .. url.escape(val) .. '&'
   end
 
-  return pstr
+  return pstr:gsub('&$', '')
 end
 
 --- Takes set-cookie string and parses it into a table
--- @string set_cookie set-cookie string from response headers
+-- @tparam string set_cookie set-cookie string from response headers
 local function explode_cookie(set_cookie)
   local c = {}
   
@@ -53,10 +59,10 @@ end
 
 --- Format table of cookie = value key-value-pairs and formats them
 -- into a cookie string for a request header
--- @table cookies Table of cookies with pairs in the form cookie_name = value
-local function implode_cookies(cookies)
+-- @tparam table cookies Table of cookies with pairs in the form cookie_name = value
+local function implode_cookie(cookies)
   local c = ''
-
+  
   for name, val in pairs(cookies) do
     c = c .. name .. '=' .. val .. '; '
   end
@@ -64,81 +70,184 @@ local function implode_cookies(cookies)
   return c:gsub('; $', '')
 end
 
---- Properly formats a request URL for the given path and optional GET parameters
--- based on loaded btsync config
-function btcomm:url(path, params)
-  return ('%s://%s:%d/gui/%s%s'):format(self.scheme, self.host, self.port, path, param_string(params))
-end
+--- Perform HTTP request based on request_data table
+-- @tparam table request_data 
+-- @treturn bool status Request success status
+-- @treturn int code HTTP status code
+-- @treturn headers table Response headers
+-- @treturn string body Response body
+local function do_request(request_data)
+  local response  = {}
+  local save      = ltn12.sink.table(response)
+  local query_tab = request_data.query   or {}
+  local url_parts = {
+    scheme = request_data.scheme,
+    path   = request_data.path,
+    query  = build_query(request_data.query),
+    port   = request_data.port or 8080,
+    host   = request_data.host
+  }
 
---- Performs http request and return sane response data (wrapper for http.request)
-function btcomm:request(r)
-  local response = {}
-  local save     = ltn12.sink.table(response)
-  local headers  = r.headers or {}
+  d(url.build(url_parts), 'BUILD URL')
 
-  if self.use_auth then
-    headers.Authorization = "Basic " .. (mime.b64(self.user .. ":" .. self.pass))
-  end
-
-  if self.session.cookie then
-    headers.Cookie = implode_cookies(self.session.cookie)
-  end
-
-  headers.Connection = 'keep-alive'
-
-  local q = { 
-    url     = self:url(r.url or '', r.params),
-    sink    = save,
-    headers = headers,
-    method  = r.method  or 'GET',
+  local r = {
+    sink     = save,
+    url      = url.build(url_parts),
+    headers  = request_data.headers or {},
+    method   = request_data.method  or 'GET',
     redirect = false
   }
-d(q)
-  local ok, code, headers = http.request(q)
 
-  if not ok then 
-    error('Failed request') 
-  else
-    if headers['set-cookie'] then
-      if not self.session.cookie then
-        self.session.cookie = {}
-      end
+  d(r, 'DO_REQUEST r{}')
 
-      self.session.cookie = explode_cookie(headers['set-cookie'])
-      d(self.session.cookie)
-    end
-  end
+  local ok, code, headers = http.request(r)
 
-  return code, headers, response[1]
+  d(headers, 'RESPONSE HEADERS')
+
+  if not ok then error('Failed request') end
+
+  d(response[1], 'RESPONSE BODY')
+
+  return ok, code, headers, response[1]
 end
 
---- Factory to create new btcomm
--- @table conf values from btsync.conf as parsed into Lua table
+--- Public functions 
+-- @section API
+
+--- Update client session cookie with response header's 'set-cookie' values
+-- @tparam string set_cookie 'set-cookie' value from server response header
+function btcomm:update_session_cookie(set_cookie)
+  if not self.session.headers.cookie then
+    self.session.headers.cookie = {}
+  end
+
+  response_cookie = explode_cookie(set_cookie)
+
+  -- Merge response cookies into session
+  for name,value in pairs(response_cookie) do
+    self.session.headers.cookie[name] = value
+  end
+
+  d(self.session.headers.cookie, 'SESSION COOKIE')
+end
+
+--- Get a request token from BTSync webui
+-- @treturn string Token
+function btcomm:request_token()
+  local request_data = {
+    scheme  = self.scheme,
+    path    = '/gui/token.html',
+    query   = { t = os.time() },
+    port    = self.port,
+    host    = self.host,
+    headers = {
+      Authorization = self.use_auth and self.session.headers.Authorization or nil
+    },
+    method  = 'POST'
+  }
+
+  d(request_data, 'REQUEST DATA')
+
+  local ok, code, headers, body = do_request(request_data)
+
+  if headers['set-cookie'] then
+    self:update_session_cookie(headers['set-cookie'])
+  end
+
+  return body:match('>([^<]+)<') -- This is how BitTorrent's webui.js does this
+end
+
+--- Performs http request and return sane response data
+-- @tparam table query_tab GET request query variables. { key = val } => '?key=val'. { key = true } => ?key.
+-- @tparam[opt] string method Override request method, default 'GET'
+-- @tparam[opt] string path Optional relative path
+-- @treturn string Response Body
+function btcomm:request(query_tab, method, path)
+  if not self.session.token then
+    self.session.token = self:request_token()
+  end
+
+  -- Insert signing token & timestamp
+  query_tab.token = self.session.token
+  query_tab.t     = os.time()
+
+  -- Build request
+  local request_data = {
+    scheme  = self.scheme,
+    path    = '/gui/' .. (path or ''),
+    query   = query_tab,
+    port    = self.port,
+    host    = self.host,
+    headers = { Connection = 'keep-alive' },
+    method  = mothod or 'GET'
+  }
+
+  if self.use_auth then
+    request_data.headers.Authorization = self.session.headers.Authorization
+  end
+
+  if self.session.headers.cookie then
+    request_data.headers.Cookie = implode_cookie(self.session.headers.cookie)
+  end
+
+  d(request_data, 'REQUEST DATA')
+
+  local ok, code, headers, body = do_request(request_data)
+
+  -- Set/update cookie values (if needed)
+  if headers['set-cookie'] then
+    self:update_session_cookie(headers['set-cookie'])
+  end
+
+  if code ~= 200 then 
+    error('HTTP '..code..': '..codes[code]) 
+  end
+
+  return body
+end
+
+--- Construct new btcomm object
+-- @usage 
+-- local Btcomm = require 'btcomm'
+-- local config = {
+--   webui = {
+--     listen   = '0.0.0.0:8888',
+--     login    = 'Username', -- Optional
+--     password = 'Password'  -- Optional
+--   }
+-- }
+-- local my_btcomm_obj = Btcomm()
+-- @name btcomm
+-- @tparam table conf Values from btsync.conf (uses localhost:8888 without auth if omitted)
+-- @return table New @{btcomm} object
 local function init(btconf)
   if not btconf.webui then error('missing webui configuration') end
   if btconf.shared_folders then error('webui disabled') end
 
   local ui   = btconf.webui
-  local conn = {
-    scheme   = 'http',
-    host     = 'localhost',
-    port     = 8888,
-    use_auth = false,
-    user     = 'User',
-    pass     = 'Password',
-    session  = {}
+
+  --- Instance variables in new @{btcomm} object
+  local instance = {
+    scheme   = 'http',          -- string: Request scheme, default 'http'
+    host     = 'localhost',     -- string: Sync webui host, default 'localhost'
+    port     = 8888,            -- int: Sync webui port, default 8888
+    use_auth = false,           -- bool: Use authentication? default, false
+    user     = 'User',          -- string: Username for authentication
+    pass     = 'Password',      -- string: Password for authentication
+    session  = {                -- table: Holds session/cache data
+      headers = {}              -- table: Used to persist headers across requests
+    }
   }
 
-  conn.host = ui.listen:match('^(%d+%.%d+%.%d+%.%d+):%d+')
-  conn.port = tonumber(ui.listen:match('%d+%.%d+%.%d+%.%d+:(%d+)$'))
+  instance.host = ui.listen:match('^(%d+%.%d+%.%d+%.%d+):%d+')
+  instance.port = tonumber(ui.listen:match('%d+%.%d+%.%d+%.%d+:(%d+)$'))
 
   if ui.login then
-    conn.user = ui.login
-    conn.pass = ui.password or ''
-    conn.use_auth = true
+    instance.use_auth = true
+    instance.session.headers.Authorization = 'Basic ' .. (mime.b64(ui.login .. ":" .. ui.password))
   end
 
-  return setmetatable(conn, {  __index = btcomm })
+  return setmetatable(instance, {  __index = btcomm })
 end
 
 if _TEST then
