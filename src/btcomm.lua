@@ -1,5 +1,5 @@
 --- Communications library for interfacing with BTSync webui and persisting
--- session state/data.
+-- session data.
 -- @author Conor Heine
 -- @license MIT
 -- @copyright Conor Heine 2013

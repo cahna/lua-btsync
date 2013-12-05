@@ -91,29 +91,44 @@ function btsync:get_version(as_string)
   return body.version
 end
 
-function btsync:add_sync_folder(b, c)
-  self.comm:request({ 
+--- Add a folder to be managed by btsync
+-- @tparam string folder Sync folder path
+-- @tparam string secret Sync folder secret
+-- @treturn boolean success Returns true if sane response received
+function btsync:add_sync_folder(folder, secret)
+  local body = self.comm:request({ 
     action = 'addsyncfolder',
     name   = folder,
     secret = secret
   })
+  return type(json.decode(body)) == 'table'
 end
 
-function btsync:add_force_sync_folder(b, c)
-  self.comm:request({ 
+--- Forcibly add a folder to be managed by btsync (unsure of why this exists)
+-- @tparam string folder Sync folder path
+-- @tparam string secret Sync folder secret
+-- @treturn boolean success Returns true if sane response received
+function btsync:add_force_sync_folder(folder, secret)
+  local body = self.comm:request({ 
     action = 'addsyncfolder',
     name   = folder,
     secret = secret,
     force  = 1
   })
+  return type(json.decode(body)) == 'table'
 end
 
+--- Remove a folder managed by btsync
+-- @tparam string folder Sync folder path
+-- @tparam string secret Sync folder secret
+-- @treturn boolean success Returns true if sane response received
 function btsync:remove_sync_folder(folder, secret)
-  self.comm:request({ 
+  local body = self.comm:request({ 
     action = 'removefolder',
     name   = folder,
     secret = secret
   })
+  return type(json.decode(body)) == 'table'
 end
 
 --- Request a new secret and read-only secret
@@ -131,6 +146,8 @@ function btsync:get_settings()
   return body.settings
 end
 
+--- Configure btsync internal settings
+-- @todo Implement and test
 function btsync:set_settings(b, c)
   error('not implemented')
 end
@@ -170,6 +187,10 @@ function btsync:check_new_version()
   return self.comm:request({ action = 'checknewversion' })
 end
 
+--- Retrieve a folder's specific btsync preferences
+-- @tparam string folder Sync folder path
+-- @tparam string secret Sync folder secret
+-- @treturn table Folder's preferences
 function btsync:get_folder_preferences(folder, secret)
   local body = self.comm:request({ 
     action = 'getfolderpref',
@@ -198,10 +219,29 @@ function btsync:get_hosts(folder, secret)
   return data.hosts
 end
 
+--- Add a host to a folder managed by btsync
+-- @tparam string folder Sync folder path
+-- @tparam string secret Sync folder secret
+-- @tparam string address Host address to be added
+-- @tparam number port Host's port
+-- @treturn boolean success Returns true if sane response received
 function btsync:add_host(folder, secret, address, port)
-  error('not implemented')
+  local body = self.comm:request({
+    action = 'addknownhosts',
+    name   = folder,
+    secret = secret,
+    addr   = address,
+    port   = port
+  })
 end
 
+--- Remove a host from a folder managed by btsync
+-- @todo Implement this method
+-- @todo Find out what 'index' is
+-- @tparam string folder Sync folder path
+-- @tparam string secret Sync folder secret
+-- @tparam number index Not sure what this is...
+-- @treturn boolean success Returns true if sane response received
 function btsync:remove_host(folder, secret, index)
   error('not implemented')
 end
@@ -224,6 +264,10 @@ function btsync:set_lang(language)
   return type(r) == 'table'
 end
 
+--- Update the secret for a folder managed by btsync
+-- @tparam string folder Sync folder full path
+-- @tparam string secret Sync folder secret
+-- @treturn boolean True if successful, false otherwise
 function btsync:update_secret(folder, secret, newsecret)
   local r = json.decode(self.comm:request({ 
     action    = 'updatesecret',
