@@ -154,7 +154,7 @@ local function init(self, btconf)
 end
 
 --- Update client session cookie with response header's 'set-cookie' values
--- @tparam string set_cookie 'set-cookie' value from server response header
+-- @tparam string set_cookie 'set-cookie' string from server response header
 function btcomm:update_session_cookie(set_cookie)
   if not self.session.headers.cookie then
     self.session.headers.cookie = {}
